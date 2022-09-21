@@ -1,4 +1,5 @@
 #include <iostream>
+#include <thread>
 #include <algorithm>
 #include <cmath>
 #include <Windows.h>
@@ -13,10 +14,88 @@ LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 const int WIN_W = 1280, WIN_H = 720, ALG_W = 1140, ALG_H = 620;
 RECT rect;
 int* array;
-int arraySize = 200;
+int arraySize = 120;
 AlgorithmUtils utils = AlgorithmUtils();
 HWND hwnd;
 bool quit = false;
+bool paint = false;
+
+void algo() {
+	utils.bubbleSort(array, arraySize, &arraySize);
+}
+
+void render(HWND hwnd) {
+	MSG msg;
+	while (!quit) {
+			InvalidateRect(hwnd, NULL, FALSE);
+			UpdateWindow(hwnd);
+			if (PeekMessageA(&msg, hwnd, 0, 0, PM_REMOVE))
+			{
+				if (msg.message == WM_PAINT) {
+					TranslateMessage(&msg);
+					DispatchMessage(&msg);
+				}
+			}
+		}
+}
+
+void paintFunc(HWND hWnd) {
+	while (!quit) {
+		if (paint) {
+				paint = false;
+				PAINTSTRUCT ps;
+				HDC hdc;
+
+				hdc = BeginPaint(hWnd, &ps);
+
+				HDC memDC = CreateCompatibleDC(hdc);
+
+				RECT rcClientRect;
+				GetClientRect(hwnd, &rcClientRect);
+
+				HBITMAP bmp = CreateCompatibleBitmap(hdc,
+					rcClientRect.right - rcClientRect.left,
+					rcClientRect.bottom - rcClientRect.top);
+
+				HBITMAP oldBmp = (HBITMAP)SelectObject(memDC, bmp);
+
+				// Drawing Backgrounds.
+
+				rect.top = 80;
+				rect.left = 50;
+				rect.right = WIN_W - rect.left - 20;
+				rect.bottom = WIN_H - rect.top - 10;
+
+				FillRect(memDC, &rcClientRect, (HBRUSH)GetStockObject(DC_BRUSH));
+				SelectObject(memDC, GetStockObject(BLACK_BRUSH));
+				RoundRect(memDC, rect.left, rect.top, rect.right, rect.bottom, 20, 20);
+				SelectObject(memDC, GetStockObject(DC_BRUSH));
+
+				// End of drawing Backgrounds.
+
+				// Draw Rectangles.
+
+				SelectObject(memDC, GetStockObject(WHITE_PEN));
+
+				for (int i = 1; i < arraySize + 1; i++) {
+					Rectangle(memDC, round(WIN_W - ALG_W - 80 + (((float)ALG_W / (float)arraySize) * i)), 620 - (((float)array[i - 1] / (float)arraySize) * 520), round(WIN_W - ALG_W - 80 - ((float)ALG_W/ (float)arraySize) + (((float)ALG_W / (float)arraySize) * i)), ALG_H);
+				}
+
+				SelectObject(memDC, GetStockObject(BLACK_PEN));
+
+				BitBlt(hdc, 0, 0, rcClientRect.right - rcClientRect.left,
+					rcClientRect.bottom - rcClientRect.top, memDC, 0, 0, SRCCOPY);
+
+				SelectObject(memDC, oldBmp);
+				DeleteObject(bmp);
+				DeleteDC(memDC);
+
+				EndPaint(hWnd, &ps);
+				
+			}
+		
+	}
+}
 
 int WINAPI WinMain(
 	_In_ HINSTANCE hInstance,
@@ -26,7 +105,7 @@ int WINAPI WinMain(
 ) {
 	array = utils.genOrderedArray(arraySize);
 	std::random_shuffle(&array[0], &array[arraySize - 1]);
-	utils.printArray(array, arraySize);
+	//utils.printArray(array, arraySize);
 	//Gen Array ^^^
 
 	const wchar_t CLASS_NAME[] = L"Sorting Algorithms";
@@ -56,7 +135,7 @@ int WINAPI WinMain(
 		return 1;
 	}
 
-	hwnd = CreateWindowExW(WS_EX_OVERLAPPEDWINDOW, CLASS_NAME, L"Sorting Algorithms", (WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME) ^ WS_MAXIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, WIN_W,
+	hwnd = CreateWindowExW(WS_EX_OVERLAPPEDWINDOW, CLASS_NAME, L"Sorting Algorithms", ((WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME) ^ WS_MAXIMIZEBOX) | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT, WIN_W,
 		WIN_H, NULL, NULL, hInstance, NULL);
 
 	if (!hwnd)
@@ -72,43 +151,37 @@ int WINAPI WinMain(
 	ShowWindow(hwnd,nCmdShow);
 	UpdateWindow(hwnd);
 
-	int tempSize = arraySize;
-
-
+	std::thread paintThread(paintFunc, hwnd);
+	std::thread renderThread(render, hwnd);
+	std::thread algoThread(algo);
 
 	MSG msg;
 	while (!quit)
 	{
-		if (tempSize > 0) {
-			utils.partialBubbleSort(array, tempSize, &tempSize);
-			tempSize--;
-			//Sleep(4);
-		}
 		if (PeekMessageA(&msg, hwnd, 0, 0, PM_REMOVE))
 		{
-			::TranslateMessage(&msg);
-			::DispatchMessage(&msg);
+			
+			if (msg.message != WM_PAINT) {
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
 		}
 		
 	}
+	algoThread.join();
+	renderThread.join();
+	paintThread.join();
 
 	return (int)msg.wParam;
 }
 
+
 int main()
 {
-	
-
-	array = utils.genOrderedArray(arraySize);
-
-	std::random_shuffle(&array[0], &array[arraySize -1]);
-
-    utils.printArray(array, arraySize);
-
-
-
 	return WinMain(GetModuleHandle(NULL), NULL, GetCommandLineA(), SW_SHOWNORMAL);
 }
+
+
 
 LRESULT CALLBACK WndProc(
 	_In_ HWND   hWnd,
@@ -122,59 +195,14 @@ LRESULT CALLBACK WndProc(
 	switch (message)
 	{
 	case WM_PAINT:
-	{
-
-		hdc = BeginPaint(hWnd, &ps);
-
-		HDC memDC = CreateCompatibleDC(hdc);
-
-		RECT rcClientRect;
-		GetClientRect(hwnd, &rcClientRect);
-
-		HBITMAP bmp = CreateCompatibleBitmap(hdc,
-			rcClientRect.right - rcClientRect.left,
-			rcClientRect.bottom - rcClientRect.top);
-
-		HBITMAP oldBmp = (HBITMAP)SelectObject(memDC, bmp);
-
-		// Drawing Backgrounds.
-	
-		rect.top = 80;
-		rect.left = 50;
-		rect.right = WIN_W - rect.left - 20;
-		rect.bottom = WIN_H - rect.top - 10;
-	
-		FillRect(memDC, &rcClientRect, (HBRUSH)GetStockObject(DC_BRUSH));
-		SelectObject(memDC, GetStockObject(BLACK_BRUSH));
-		RoundRect(memDC, rect.left, rect.top, rect.right, rect.bottom, 20, 20);
-		SelectObject(memDC, GetStockObject(DC_BRUSH));
-	
-		// End of drawing Backgrounds.
-	
-		// Draw Rectangles.
-
-		SelectObject(memDC, GetStockObject(WHITE_PEN));
-
-		for (int i = 1; i < arraySize + 1; i++) {
-			Rectangle(memDC, round(WIN_W - ALG_W - 80 + (((float)ALG_W / (float)arraySize) * i)), 620 - (((float)array[i - 1] / (float)arraySize) * 520), round(WIN_W - ALG_W - 80 - ((float)ALG_W/ (float)arraySize) + (((float)ALG_W / (float)arraySize) * i)), ALG_H);
-		}
-
-		SelectObject(memDC, GetStockObject(BLACK_PEN));
-
-		BitBlt(hdc, 0, 0, rcClientRect.right - rcClientRect.left,
-			rcClientRect.bottom - rcClientRect.top, memDC, 0, 0, SRCCOPY);
-
-		SelectObject(memDC, oldBmp); 
-		DeleteObject(bmp); 
-		DeleteDC(memDC);   
-
-		EndPaint(hWnd, &ps);
+		paint = true;
 		break;
-	}
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		quit = true;
 		break;
+	case WM_ERASEBKGND: 
+		return 1; 
 	default:
 		return DefWindowProc(hWnd, message, wParam, lParam);
 		break;

@@ -3,6 +3,8 @@ using std::cout;
 using std::endl;
 
 extern HWND hwnd;
+extern bool quit;
+
 
 void AlgorithmUtils::printArray(int a[], int n) {
 	cout << "[ ";
@@ -24,8 +26,6 @@ void AlgorithmUtils::partialBubbleSort(int array[], int size, int* sizePtr) {
 				array[i] = reference;
 				array[i - 1] = swapValue;
 			}
-			InvalidateRect(hwnd, NULL, FALSE);
-			UpdateWindow(hwnd);
 		}
 	}
 	else cout << "Cannot sort Array of size 0!" << endl;
@@ -33,6 +33,7 @@ void AlgorithmUtils::partialBubbleSort(int array[], int size, int* sizePtr) {
 
 void AlgorithmUtils::bubbleSort(int array[], int size, int* sizePtr) {
 	if (size != 0) {
+	
 		int reference = array[0];
 		int iterations = 1;
 		for (int i = 1; i < size; i++) {
@@ -45,14 +46,16 @@ void AlgorithmUtils::bubbleSort(int array[], int size, int* sizePtr) {
 				array[i] = reference;
 				array[i - 1] = swapValue;
 			}
+			if(i%4 == 0)Sleep(1);
 		}
-		if (iterations < size) {
+		if (iterations < size && !quit) {
 			bubbleSort(array, size - 1, sizePtr);
 		}
 		else if (iterations == size) {
 			cout << "Sorted Array is: " << endl;
 			printArray(array, *sizePtr);
 		}
+		
 	}
 	else cout << "Cannot sort Array of size 0!" << endl;
 }
