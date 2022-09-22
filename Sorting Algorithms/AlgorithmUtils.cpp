@@ -46,7 +46,7 @@ void AlgorithmUtils::bubbleSort(int array[], int size, int* sizePtr) {
 				array[i] = reference;
 				array[i - 1] = swapValue;
 			}
-			if(i%4 == 0)Sleep(1);
+			Sleep(4);
 		}
 		if (iterations < size && !quit) {
 			bubbleSort(array, size - 1, sizePtr);
