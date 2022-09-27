@@ -4,6 +4,7 @@
 class AlgorithmUtils
 {
 public:
+	int getGReference();
 	void printArray(int a[], int n);
 	void partialBubbleSort(int array[], int size, int* sizePtr);
 	void bubbleSort(int array[], int size, int* sizePtr);

@@ -2,9 +2,8 @@
 using std::cout;
 using std::endl;
 
-extern HWND hwnd;
-extern bool quit;
-
+extern std::atomic<bool> killThreads;
+std::atomic<int> g_reference;
 
 void AlgorithmUtils::printArray(int a[], int n) {
 	cout << "[ ";
@@ -33,7 +32,6 @@ void AlgorithmUtils::partialBubbleSort(int array[], int size, int* sizePtr) {
 
 void AlgorithmUtils::bubbleSort(int array[], int size, int* sizePtr) {
 	if (size != 0) {
-	
 		int reference = array[0];
 		int iterations = 1;
 		for (int i = 1; i < size; i++) {
@@ -46,18 +44,14 @@ void AlgorithmUtils::bubbleSort(int array[], int size, int* sizePtr) {
 				array[i] = reference;
 				array[i - 1] = swapValue;
 			}
+			g_reference = reference;
+			if (killThreads) break;
 			Sleep(4);
 		}
-		if (iterations < size && !quit) {
+		if (iterations < size && !killThreads) {
 			bubbleSort(array, size - 1, sizePtr);
-		}
-		else if (iterations == size) {
-			cout << "Sorted Array is: " << endl;
-			printArray(array, *sizePtr);
-		}
-		
+		} else g_reference = 0;
 	}
-	else cout << "Cannot sort Array of size 0!" << endl;
 }
 
 int* AlgorithmUtils::genRandomArray(const int size) {
@@ -78,4 +72,7 @@ int* AlgorithmUtils::genOrderedArray(const int size) {
 	}
 
 	return array;
+}
+int AlgorithmUtils::getGReference() {
+	return g_reference.load();
 }
