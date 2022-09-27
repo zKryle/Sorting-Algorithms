@@ -17,9 +17,10 @@ int* array;
 int arraySize = 100;
 AlgorithmUtils utils = AlgorithmUtils(); 
 bool quit = false;
-std::atomic<bool> killThreads = false, paint = false;
+std::atomic<bool> killThreads = false, paint = false, stopped = true;
 std::thread threadPaint;
 std::thread threadAlgo;
+
 
 //Buttons:
 HWND playButton;
@@ -136,7 +137,7 @@ void loadRegSizePos(HWND hWnd) {
 	DWORD size = sizeof(int);
 	int upperLeftX, upperLeftY, lowerRightX, lowerRightY;
 	RegCreateKeyExA(HKEY_CURRENT_USER, "Software\\zKryle\\SortingAlgorithms", 0, NULL, NULL, KEY_CREATE_SUB_KEY | KEY_READ, NULL, &hkey, &keyWasOpened);
-	if (keyWasOpened = REG_OPENED_EXISTING_KEY) {
+	if (keyWasOpened == REG_OPENED_EXISTING_KEY) {
 		RegGetValueA(hkey, NULL, "upperLeftX", RRF_RT_DWORD, NULL, &upperLeftX, &size);
 		RegGetValueA(hkey, NULL, "upperLeftY", RRF_RT_DWORD, NULL, &upperLeftY, &size);
 		RegGetValueA(hkey, NULL, "lowerRightX", RRF_RT_DWORD, NULL, &lowerRightX, &size);
@@ -249,37 +250,72 @@ LRESULT CALLBACK WndProc(
 	{
 	case WM_CREATE:
 	{
-		//playButton = createBmpButton(hWnd, 60, 60, 0, 0);
-
-		//HDC hdcScreen = GetDC(NULL);
-		//
-		//// Create a device context
-		//HDC hdcBmp = CreateCompatibleDC(hdcScreen);
-		//
-		//// Create a bitmap and attach it to the device context we created above...
-		//HBITMAP bmp = CreateCompatibleBitmap(hdcScreen, 60, 60);
-		//HBITMAP hbmOld = (HBITMAP) (SelectObject(hdcBmp, bmp));
-		//
-		//// Now, you can draw into bmp using the device context hdcBmp...
-		//RECT r = { 0, 0, 60, 60 };
-		//FillRect(hdcBmp, &r, (HBRUSH)(GetStockObject(BLACK_BRUSH)));
-		//// etc...
-		//
-		//// Clean up the GDI objects we've created.
-		//SelectObject(hdcBmp, hbmOld);
-		//DeleteDC(hdcBmp);
-		//ReleaseDC(NULL, hdcScreen);
-		//
-		//SendMessage(playButton, BM_SETIMAGE, IMAGE_BITMAP, (LPARAM)bmp);
-
+		playButton = createBmpButton(hWnd, 60, 60, 0, 0);
 		break;
 	}
 	case WM_SIZE: {
-		//RECT buttonRc = {}, winRc = {};
-		//GetClientRect(hWnd, &winRc);
-		//GetClientRect(playButton, &buttonRc);
-		//MoveWindow(playButton, (winRc.right / 2) - ((buttonRc.right - buttonRc.left)/2), 2, buttonRc.right - buttonRc.left, buttonRc.bottom - buttonRc.top, 1);
-		//
+		RECT buttonRc = {}, winRc = {};
+		GetClientRect(hWnd, &winRc);
+		GetClientRect(playButton, &buttonRc);
+		MoveWindow(playButton, (winRc.right / 2) - ((buttonRc.right - buttonRc.left)/2), 2, buttonRc.right - buttonRc.left, buttonRc.bottom - buttonRc.top, 1);
+		
+		break;
+	}
+	case WM_COMMAND: {
+		if ((HWND)lParam == playButton) {
+			stopped = !stopped.load();
+			InvalidateRect(playButton, NULL, false);
+		}
+		break;
+	}
+	case WM_DRAWITEM:
+	{
+		DRAWITEMSTRUCT item = *(DRAWITEMSTRUCT*)lParam;
+		RECT buttonRc = {};
+		GetClientRect(playButton, &buttonRc);
+		if (item.hwndItem == playButton) {
+			HPEN THICC_PEN = CreatePen(PS_SOLID, 3, RGB(0, 0, 0));
+			SelectObject(item.hDC, THICC_PEN);
+			FillRect(item.hDC, &buttonRc, (HBRUSH)GetStockObject(WHITE_BRUSH));
+			if (stopped.load()) {
+				HBRUSH GREEN_BRUSH = CreateSolidBrush(RGB(136, 211, 0));
+				SelectObject(item.hDC, GREEN_BRUSH);
+				POINT a = {}, b = {}, c = {};
+				a.x = buttonRc.left + 5;
+				a.y = buttonRc.top + 5;
+				b.x = a.x;
+				b.y = buttonRc.bottom - 5;
+				c.x = buttonRc.right - 5;
+				c.y = buttonRc.bottom / 2;
+				POINT arr[3] = { a, b, c };
+				Polygon(item.hDC, arr, 3);
+				DeleteObject(GREEN_BRUSH);
+			}
+			else {
+				HBRUSH RED_BRUSH = CreateSolidBrush(RGB(255, 0, 0));
+				SelectObject(item.hDC, RED_BRUSH);
+				RECT rectLeft = {};
+				rectLeft.left = 5;
+				rectLeft.top = 5;
+				rectLeft.bottom = buttonRc.bottom - 5;
+				rectLeft.right = buttonRc.right / 4;
+				RECT rectRight = {};
+				rectRight.left = buttonRc.right * 3 / 4;
+				rectRight.top = 5;
+				rectRight.bottom = buttonRc.bottom - 5;
+				rectRight.right = buttonRc.right - 5;
+				
+
+				Rectangle(item.hDC, rectLeft.left, rectLeft.top, rectLeft.right, rectLeft.bottom);
+				Rectangle(item.hDC, rectRight.left, rectRight.top, rectRight.right, rectRight.bottom);
+				DeleteObject(RED_BRUSH);
+			
+			}
+			SelectObject(item.hDC, (HBRUSH)GetStockObject(BLACK_PEN));
+			SelectObject(item.hDC, (HBRUSH)GetStockObject(WHITE_BRUSH));
+			DeleteObject(THICC_PEN);
+			return true;
+		}
 		break;
 	}
 	case WM_PAINT:

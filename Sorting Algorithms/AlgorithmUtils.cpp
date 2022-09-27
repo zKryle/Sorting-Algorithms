@@ -2,7 +2,7 @@
 using std::cout;
 using std::endl;
 
-extern std::atomic<bool> killThreads;
+extern std::atomic<bool> killThreads, stopped;
 std::atomic<int> g_reference;
 
 void AlgorithmUtils::printArray(int a[], int n) {
@@ -34,22 +34,31 @@ void AlgorithmUtils::bubbleSort(int array[], int size, int* sizePtr) {
 	if (size != 0) {
 		int reference = array[0];
 		int iterations = 1;
-		for (int i = 1; i < size; i++) {
-			if (reference < array[i]) {
-				reference = array[i];
-				iterations++;
+		if (!stopped) {
+			for (int i = 1; i < size; i++) {
+				if (reference < array[i]) {
+					reference = array[i];
+					iterations++;
+				}
+				else {
+					int swapValue = array[i];
+					array[i] = reference;
+					array[i - 1] = swapValue;
+				}
+				g_reference = reference;
+				if (killThreads) break;
+				Sleep(4);
+			}
+		}
+		
+		if (iterations < size && !killThreads) {
+			if (!stopped) {
+				bubbleSort(array, size - 1, sizePtr);
 			}
 			else {
-				int swapValue = array[i];
-				array[i] = reference;
-				array[i - 1] = swapValue;
+				g_reference = reference;
+				bubbleSort(array, size, sizePtr);
 			}
-			g_reference = reference;
-			if (killThreads) break;
-			Sleep(4);
-		}
-		if (iterations < size && !killThreads) {
-			bubbleSort(array, size - 1, sizePtr);
 		} else g_reference = 0;
 	}
 }
